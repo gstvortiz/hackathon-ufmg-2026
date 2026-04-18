@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JurisIA | Analisador Estratégico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jur: {
+              navy: '#0B1F3A',
+              blue: '#1D4ED8',
+              sky: '#2563EB',
+              green: '#059669',
+              red: '#DC2626',
+              slate: '#E2E8F0'
+            }
+          },
+          fontFamily: {
+            sans: ['"Segoe UI"', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .rich-text h1, .rich-text h2, .rich-text h3 { color: #0B1F3A; font-weight: 700; margin-top: 0.9rem; margin-bottom: 0.5rem; }
+    .rich-text p { margin: 0.55rem 0; }
+    .rich-text ul { list-style: disc; margin: 0.5rem 0 0.5rem 1.25rem; }
+    .rich-text ol { list-style: decimal; margin: 0.5rem 0 0.5rem 1.25rem; }
+    .rich-text li { margin: 0.15rem 0; }
+    .rich-text code { background: #e2e8f0; padding: 0.1rem 0.25rem; border-radius: 0.25rem; }
+    .rich-text a { color: #1d4ed8; text-decoration: underline; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+  <header class="bg-jur-navy text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">JurisIA</h1>
+        <p class="text-sm text-slate-300">Análise estratégica processual para decisão entre Acordo e Defesa</p>
+      </div>
+      <a href="/lancamentos" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        Ver Lançamentos
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold text-jur-navy">Nova Análise</h2>
+        <p class="text-sm text-slate-600 mt-1">
+          O sistema extrai automaticamente <strong>Valor da Causa</strong> e <strong>UF</strong> do PDF de Autos.
+        </p>
+      </div>
+
+      <form id="analiseForm" class="space-y-5" novalidate>
+        <div>
+          <label class="block text-sm font-semibold text-jur-navy mb-2">Autos do Processo (Obrigatório)</label>
+          <div class="drop-zone border-2 border-dashed border-jur-blue/40 bg-jur-blue/5 rounded-xl p-6 text-center cursor-pointer hover:bg-jur-blue/10 transition" data-input="autos">
+            <p class="font-medium text-jur-navy">Arraste o PDF aqui ou clique para selecionar</p>
+            <p class="text-xs text-slate-500 mt-1">Apenas PDF</p>
+            <input id="autos" name="autos" type="file" class="hidden" accept=".pdf" required />
+            <p class="file-name text-sm text-jur-blue mt-2 hidden"></p>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-sm font-semibold text-jur-navy mb-2">Subsídios Opcionais</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="contrato">
+              <p class="text-sm font-semibold text-slate-700">Contrato</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="contrato" type="file" class="hidden" accept=".pdf" />
+            </label>
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="extrato">
+              <p class="text-sm font-semibold text-slate-700">Extrato</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="extrato" type="file" class="hidden" accept=".pdf" />
+            </label>
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="comprovante">
+              <p class="text-sm font-semibold text-slate-700">Comprovante</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="comprovante" type="file" class="hidden" accept=".pdf" />
+            </label>
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="dossie">
+              <p class="text-sm font-semibold text-slate-700">Dossiê</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="dossie" type="file" class="hidden" accept=".pdf" />
+            </label>
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="demonstrativo">
+              <p class="text-sm font-semibold text-slate-700">Demonstrativo</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="demonstrativo" type="file" class="hidden" accept=".pdf" />
+            </label>
+            <label class="drop-zone border border-slate-300 bg-slate-50 rounded-xl p-4 cursor-pointer hover:border-jur-blue transition" data-input="laudo">
+              <p class="text-sm font-semibold text-slate-700">Laudo</p>
+              <p class="file-name text-xs text-jur-blue mt-1 hidden"></p>
+              <input name="laudo" type="file" class="hidden" accept=".pdf" />
+            </label>
+          </div>
+        </div>
+
+        <button id="submitBtn" type="submit" class="w-full bg-jur-navy hover:bg-slate-900 text-white font-semibold rounded-xl py-3.5 transition flex justify-center items-center gap-2">
+          <span id="btnLabel">Analisar Estratégia</span>
+        </button>
+      </form>
+    </section>
+
+    <section id="resultado" class="hidden mt-6 space-y-4">
+      <div id="erroBox" class="hidden bg-red-50 border border-red-300 text-jur-red rounded-xl p-4 text-sm font-medium"></div>
+
+      <article id="cardDecisao" class="hidden rounded-2xl p-6 shadow-lg text-white">
+        <p class="text-xs uppercase tracking-[0.2em] opacity-80">Recomendação</p>
+        <h3 id="decisaoTitulo" class="text-3xl font-extrabold mt-1"></h3>
+        <p id="decisaoSubtitulo" class="text-sm mt-2 opacity-90"></p>
+      </article>
+
+      <div id="metricas" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+          <p class="text-xs uppercase tracking-wider text-slate-500">Custo Esperado do Acordo</p>
+          <p id="valorAcordo" class="text-2xl font-bold text-slate-900 mt-1"></p>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+          <p class="text-xs uppercase tracking-wider text-slate-500">Custo Esperado da Defesa</p>
+          <p id="valorDefesa" class="text-2xl font-bold text-slate-900 mt-1"></p>
+        </div>
+        <div id="cardSugestaoAcordo" class="hidden bg-emerald-50 rounded-xl p-5 border border-emerald-200 shadow-sm">
+          <p class="text-xs uppercase tracking-wider text-emerald-700">Sugestão de Oferta (Acordo)</p>
+          <p id="valorSugeridoAcordo" class="text-2xl font-bold text-emerald-800 mt-1"></p>
+        </div>
+      </div>
+
+      <div id="metaInfo" class="hidden bg-white rounded-xl p-5 border border-slate-200 shadow-sm text-sm text-slate-700"></div>
+
+      <div id="confirmacaoBox" class="hidden bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Persistência</p>
+        <p class="text-sm text-slate-700 mt-1">
+          Revise o resultado e confirme para gravar esta análise no banco de dados.
+        </p>
+        <div class="mt-3 flex items-center gap-3">
+          <button id="confirmarBtn" type="button" class="bg-jur-green hover:bg-emerald-700 text-white font-semibold rounded-lg px-4 py-2 transition">
+            Confirmar e salvar no banco
+          </button>
+          <span id="confirmacaoStatus" class="text-sm text-slate-600"></span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button id="accordionBtn" class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition">
+          <span class="font-semibold text-jur-navy">Entenda a Decisão da IA</span>
+          <span id="accordionIcon" class="text-jur-navy">+</span>
+        </button>
+        <div id="accordionBody" class="hidden border-t border-slate-200 p-5">
+          <div id="justificativa" class="rich-text text-sm leading-relaxed text-slate-700"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+      const fmtBRL = (v) => BRL.format(Number(v || 0));
+      const fmtPct = (v) => `${(Number(v || 0) * 100).toFixed(1)}%`;
+      const $ = (id) => document.getElementById(id);
+      let pendenteToken = null;
+
+      function setupDropzones() {
+        document.querySelectorAll('.drop-zone').forEach((zone) => {
+          const input = zone.querySelector('input[type="file"]');
+          const fileNameEl = zone.querySelector('.file-name');
+          if (!input) return;
+
+          // Labels ja disparam o click do input nativamente.
+          // Evita abrir dialogo duas vezes e perder selecoes nos campos opcionais.
+          if (zone.tagName !== 'LABEL') {
+            zone.addEventListener('click', () => input.click());
+          }
+          input.addEventListener('change', () => {
+            if (input.files.length > 0) {
+              fileNameEl.textContent = input.files[0].name;
+              fileNameEl.classList.remove('hidden');
+            }
+          });
+
+          zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('border-jur-blue');
+          });
+
+          zone.addEventListener('dragleave', () => {
+            zone.classList.remove('border-jur-blue');
+          });
+
+          zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('border-jur-blue');
+            if (e.dataTransfer.files.length > 0) {
+              input.files = e.dataTransfer.files;
+              fileNameEl.textContent = e.dataTransfer.files[0].name;
+              fileNameEl.classList.remove('hidden');
+            }
+          });
+        });
+      }
+
+      function setLoading(isLoading) {
+        const btn = $('submitBtn');
+        btn.disabled = isLoading;
+        $('btnLabel').textContent = isLoading ? 'Analisando...' : 'Analisar Estratégia';
+        if (isLoading) {
+          btn.classList.add('opacity-80', 'cursor-not-allowed');
+        } else {
+          btn.classList.remove('opacity-80', 'cursor-not-allowed');
+        }
+      }
+
+      function resetResultado() {
+        pendenteToken = null;
+        $('resultado').classList.remove('hidden');
+        $('erroBox').classList.add('hidden');
+        $('cardDecisao').classList.add('hidden');
+        $('metricas').classList.add('hidden');
+        $('cardSugestaoAcordo').classList.add('hidden');
+        $('metaInfo').classList.add('hidden');
+        $('confirmacaoBox').classList.add('hidden');
+        $('confirmacaoStatus').textContent = '';
+        $('confirmarBtn').disabled = false;
+        $('confirmarBtn').textContent = 'Confirmar e salvar no banco';
+      }
+
+      function showErro(msg) {
+        $('resultado').classList.remove('hidden');
+        $('erroBox').classList.remove('hidden');
+        $('erroBox').textContent = msg;
+      }
+
+      function renderRichText(targetEl, text) {
+        const raw = String(text || '').trim();
+        if (!raw) {
+          targetEl.innerHTML = '';
+          return;
+        }
+
+        const pareceHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+        let html = '';
+        if (pareceHtml) {
+          html = raw;
+        } else if (window.marked && typeof window.marked.parse === 'function') {
+          html = window.marked.parse(raw, { breaks: true, gfm: true });
+        } else {
+          html = raw
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replace(/\n/g, '<br>');
+        }
+
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+          html = window.DOMPurify.sanitize(html);
+        }
+        targetEl.innerHTML = html;
+      }
+
+      function renderResultado(data) {
+        const isAcordo = data.recomendacao === 'ACORDO';
+        const card = $('cardDecisao');
+        card.classList.remove('hidden', 'bg-jur-green', 'bg-jur-blue');
+        card.classList.add(isAcordo ? 'bg-jur-green' : 'bg-jur-blue');
+
+        $('decisaoTitulo').textContent = `RECOMENDAÇÃO: ${data.recomendacao}`;
+        $('decisaoSubtitulo').textContent = isAcordo
+          ? 'Cenário atual indica melhor custo esperado com acordo.'
+          : 'Cenário atual indica melhor custo esperado com defesa.';
+
+        $('metricas').classList.remove('hidden');
+        $('valorAcordo').textContent = fmtBRL(data.valores_esperados.acordo);
+        $('valorDefesa').textContent = fmtBRL(data.valores_esperados.defesa);
+        if (isAcordo && data.valores_esperados?.sugestao_acordo != null) {
+          $('cardSugestaoAcordo').classList.remove('hidden');
+          $('valorSugeridoAcordo').textContent = fmtBRL(data.valores_esperados.sugestao_acordo);
+        } else {
+          $('cardSugestaoAcordo').classList.add('hidden');
+        }
+
+        const meta = data.metadata || {};
+        const docs = data.documentos || {};
+        pendenteToken = meta.pendente_token || null;
+        $('metaInfo').classList.remove('hidden');
+        $('metaInfo').innerHTML = `
+          <p><strong>Processo:</strong> ${meta.numero_processo || 'Não identificado'}</p>
+          <p><strong>UF extraída dos Autos:</strong> ${meta.uf || 'Não extraída'}</p>
+          <p><strong>Valor da Causa extraído:</strong> ${fmtBRL(meta.valor_causa)}</p>
+          <p><strong>P(Êxito):</strong> ${fmtPct(data.probabilidade_exito)}</p>
+          <p><strong>Valor sugerido de acordo:</strong> ${data.valores_esperados?.sugestao_acordo != null ? fmtBRL(data.valores_esperados.sugestao_acordo) : 'Não aplicável'}</p>
+          <p><strong>Status no banco:</strong> ${meta.salvo_no_banco ? 'Salvo' : 'Pendente de confirmação'}</p>
+          <p><strong>Documentos presentes:</strong> ${(docs.presentes || []).join(', ') || 'Nenhum'}</p>
+          <p><strong>Documentos faltantes:</strong> ${(docs.faltantes || []).join(', ') || 'Nenhum'}</p>
+        `;
+
+        renderRichText($('justificativa'), data.justificativa_ia || '');
+
+        if (pendenteToken) {
+          $('confirmacaoBox').classList.remove('hidden');
+        }
+      }
+
+      async function confirmarAnalise() {
+        if (!pendenteToken) {
+          $('confirmacaoStatus').textContent = 'Nenhuma análise pendente para confirmar.';
+          $('confirmacaoStatus').className = 'text-sm text-red-600';
+          return;
+        }
+
+        const btn = $('confirmarBtn');
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+        $('confirmacaoStatus').textContent = '';
+
+        try {
+          const res = await fetch('/api/confirmar-analise', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pendente_token: pendenteToken })
+          });
+          const data = await res.json();
+          if (!res.ok || data.erro) {
+            throw new Error(data.erro || `HTTP ${res.status}`);
+          }
+
+          pendenteToken = null;
+          btn.textContent = 'Salvo no banco';
+          $('confirmacaoStatus').textContent = `Análise salva com ID ${data.resultado?.analise_id ?? '-'}.`;
+          $('confirmacaoStatus').className = 'text-sm text-green-700';
+          $('metaInfo').innerHTML = $('metaInfo').innerHTML
+            .replace(/<p><strong>Status no banco:<\/strong>.*?<\/p>/, '<p><strong>Status no banco:</strong> Salvo</p>')
+            + `<p><strong>ID da análise salva:</strong> ${data.resultado?.analise_id ?? '-'}</p>`;
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Confirmar e salvar no banco';
+          $('confirmacaoStatus').textContent = `Falha ao salvar: ${err.message}`;
+          $('confirmacaoStatus').className = 'text-sm text-red-600';
+        }
+      }
+
+      $('accordionBtn').addEventListener('click', () => {
+        const body = $('accordionBody');
+        const icon = $('accordionIcon');
+        body.classList.toggle('hidden');
+        icon.textContent = body.classList.contains('hidden') ? '+' : '−';
+      });
+
+      $('analiseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        resetResultado();
+
+        const autos = $('autos');
+        if (!autos.files || autos.files.length === 0) {
+          showErro('Anexe o documento de Autos para iniciar a análise.');
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const fd = new FormData($('analiseForm'));
+          const res = await fetch('/analisar', { method: 'POST', body: fd });
+          const data = await res.json();
+
+          if (!res.ok || data.erro) {
+            showErro(data.erro || `Falha na análise (HTTP ${res.status}).`);
+            return;
+          }
+
+          renderResultado(data);
+        } catch (err) {
+          showErro('Falha de comunicação com o servidor.');
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      });
+      $('confirmarBtn').addEventListener('click', confirmarAnalise);
+
+      setupDropzones();
+    })();
+  </script>
+</body>
+</html>

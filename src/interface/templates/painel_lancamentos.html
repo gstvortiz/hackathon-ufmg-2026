@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JurisIA | Lançamentos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jur: {
+              navy: '#0B1F3A',
+              blue: '#1D4ED8',
+              green: '#059669',
+              red: '#DC2626'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .rich-text h1, .rich-text h2, .rich-text h3 { color: #0B1F3A; font-weight: 700; margin-top: 0.9rem; margin-bottom: 0.5rem; }
+    .rich-text p { margin: 0.55rem 0; }
+    .rich-text ul { list-style: disc; margin: 0.5rem 0 0.5rem 1.25rem; }
+    .rich-text ol { list-style: decimal; margin: 0.5rem 0 0.5rem 1.25rem; }
+    .rich-text li { margin: 0.15rem 0; }
+    .rich-text code { background: #e2e8f0; padding: 0.1rem 0.25rem; border-radius: 0.25rem; }
+    .rich-text a { color: #1d4ed8; text-decoration: underline; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+  <header class="bg-jur-navy text-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold">Painel de Lançamentos</h1>
+        <p class="text-sm text-slate-300">Acompanhamento das análises gravadas no banco SQLite</p>
+      </div>
+      <a href="/" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-semibold">Nova Análise</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-8 space-y-5">
+    <section class="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Total</p>
+        <p id="kpiTotal" class="text-2xl font-bold mt-1">0</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Taxa de Extração Completa</p>
+        <p id="kpiExtracao" class="text-2xl font-bold mt-1 text-jur-blue">0%</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Feedback com Desfecho</p>
+        <p id="kpiAvaliadas" class="text-2xl font-bold mt-1 text-jur-navy">0</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Taxa de Aderência</p>
+        <p id="kpiAderencia" class="text-2xl font-bold mt-1 text-jur-green">0%</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Acurácia do Modelo</p>
+        <p id="kpiAcuracia" class="text-2xl font-bold mt-1 text-jur-blue">0%</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Pagamentos Registrados</p>
+        <p id="kpiAceitacao" class="text-2xl font-bold mt-1 text-jur-green">0</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-500">Economia Total do Modelo</p>
+        <p id="kpiEconomia" class="text-2xl font-bold mt-1 text-jur-navy">-</p>
+      </div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+      <div class="flex items-center justify-between gap-4 mb-3">
+        <h2 class="text-lg font-bold text-jur-navy">Últimos Lançamentos</h2>
+        <div class="flex items-center gap-2">
+          <button id="btnRelatorioIA" class="bg-jur-blue hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+            Gerar Relatório IA
+          </button>
+          <button id="btnAtualizar" class="bg-jur-navy hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Atualizar</button>
+        </div>
+      </div>
+
+      <div id="msgBox" class="hidden mb-3 rounded-lg px-3 py-2 text-sm font-medium"></div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-500 border-b border-slate-200">
+              <th class="py-2 pr-4">ID</th>
+              <th class="py-2 pr-4">Data</th>
+              <th class="py-2 pr-4">Processo</th>
+              <th class="py-2 pr-4">UF</th>
+              <th class="py-2 pr-4">Valor da Causa</th>
+              <th class="py-2 pr-4">Recomendação</th>
+              <th class="py-2 pr-4">E(VP|A)</th>
+              <th class="py-2 pr-4">Sugestão Acordo</th>
+              <th class="py-2 pr-4">E(VP|~A)</th>
+              <th class="py-2 pr-4">P(E)</th>
+              <th class="py-2 pr-4">Desfecho Real</th>
+              <th class="py-2 pr-4">Valor Pago</th>
+              <th class="py-2 pr-4">Feedback</th>
+              <th class="py-2 pr-4">Enviar Feedback</th>
+            </tr>
+          </thead>
+          <tbody id="tbLancamentos"></tbody>
+        </table>
+      </div>
+
+      <p id="semDados" class="hidden text-sm text-slate-500 py-8 text-center">Nenhum lançamento encontrado.</p>
+
+      <div class="mt-6">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <h3 class="text-base font-bold text-jur-navy">Resultado Real por Linha (tabela analises_feedback)</h3>
+          <p class="text-xs text-slate-500">Envie o feedback final diretamente na linha da segunda tabela</p>
+        </div>
+        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+          <table class="min-w-full text-sm bg-white">
+            <thead>
+              <tr class="text-left text-slate-500 border-b border-slate-200">
+                <th class="py-2 pr-4 pl-3">ID feedback</th>
+                <th class="py-2 pr-4">ID análise</th>
+                <th class="py-2 pr-4">Processo</th>
+                <th class="py-2 pr-4">Recomendação IA</th>
+                <th class="py-2 pr-4">Desfecho real</th>
+                <th class="py-2 pr-4">Valor pago (R$)</th>
+                <th class="py-2 pr-4">Seguiu a IA?</th>
+                <th class="py-2 pr-4">Observações</th>
+                <th class="py-2 pr-4">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbFeedbackResultados"></tbody>
+          </table>
+        </div>
+        <p id="semDadosFeedback" class="hidden text-sm text-slate-500 py-4 text-center">Nenhum registro de feedback encontrado.</p>
+      </div>
+
+      <div id="relatorioIaBox" class="hidden mt-5 border border-blue-200 bg-blue-50/60 rounded-lg p-4">
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="font-bold text-jur-navy">Relatório Gerencial da IA</h3>
+          <p id="relatorioIaMeta" class="text-xs text-slate-500"></p>
+        </div>
+        <div id="relatorioIaTexto" class="rich-text mt-3 text-sm text-slate-700 leading-relaxed"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="feedbackModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/40"></div>
+    <div class="relative max-w-2xl mx-auto mt-10 bg-white rounded-xl shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <h3 class="text-lg font-bold text-jur-navy">Atualizar Resultado do Caso</h3>
+        <button id="btnFecharModal" class="text-slate-500 hover:text-slate-900 text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="feedbackForm" class="p-5 space-y-4">
+        <input id="fAnaliseId" type="hidden" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs uppercase tracking-wider text-slate-500">ID da análise</label>
+            <p id="fAnaliseIdView" class="font-semibold text-jur-navy mt-1">-</p>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-wider text-slate-500">Recomendação da IA</label>
+            <p id="fRecomendacao" class="font-semibold text-jur-navy mt-1">-</p>
+          </div>
+        </div>
+
+        <div id="blocoAnaliseEditavel" class="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+          <p class="text-xs uppercase tracking-wider text-slate-500">Tabela analises (edição individual)</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="fNumeroProcesso" class="block text-sm font-medium text-slate-700 mb-1">Número do processo</label>
+              <input id="fNumeroProcesso" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="0000000-00.0000.8.00.0000" />
+            </div>
+            <div>
+              <label for="fUf" class="block text-sm font-medium text-slate-700 mb-1">UF</label>
+              <input id="fUf" type="text" maxlength="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 uppercase" placeholder="SP" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label for="fValorCausa" class="block text-sm font-medium text-slate-700 mb-1">Valor da causa (R$)</label>
+              <input id="fValorCausa" type="number" min="0.01" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+            <div>
+              <label for="fRecomendacaoIa" class="block text-sm font-medium text-slate-700 mb-1">Recomendação IA</label>
+              <select id="fRecomendacaoIa" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                <option value="ACORDO">ACORDO</option>
+                <option value="DEFESA">DEFESA</option>
+              </select>
+            </div>
+            <div>
+              <label for="fPExito" class="block text-sm font-medium text-slate-700 mb-1">P(Êxito)</label>
+              <input id="fPExito" type="number" min="0" max="1" step="0.0001" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label for="fEVPAcordo" class="block text-sm font-medium text-slate-700 mb-1">E(VP|A)</label>
+              <input id="fEVPAcordo" type="number" min="0" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+            <div>
+              <label for="fValorSugAcordo" class="block text-sm font-medium text-slate-700 mb-1">Sugestão Acordo</label>
+              <input id="fValorSugAcordo" type="number" min="0" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+            <div>
+              <label for="fEVPDefesa" class="block text-sm font-medium text-slate-700 mb-1">E(VP|~A)</label>
+              <input id="fEVPDefesa" type="number" min="0" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+          <p class="text-xs uppercase tracking-wider text-slate-500">Tabela analises_feedback (resultado final)</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="fAdvogadoSeguiu" class="block text-sm font-medium text-slate-700 mb-1">Advogado seguiu o conselho?</label>
+            <select id="fAdvogadoSeguiu" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="">Não informado</option>
+              <option value="1">Sim</option>
+              <option value="0">Não</option>
+            </select>
+          </div>
+          <div>
+            <label for="fDesfechoReal" class="block text-sm font-medium text-slate-700 mb-1">Desfecho real</label>
+            <select id="fDesfechoReal" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="">Não informado</option>
+              <option value="ACORDO">ACORDO</option>
+              <option value="DEFESA">DEFESA</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="fValorPago" class="block text-sm font-medium text-slate-700 mb-1">Valor efetivamente pago (R$)</label>
+          <input id="fValorPago" type="number" min="0" step="0.01" placeholder="0.00" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+        </div>
+        </div>
+
+        <div>
+          <label for="fObservacoes" class="block text-sm font-medium text-slate-700 mb-1">Observações</label>
+          <textarea id="fObservacoes" rows="3" maxlength="2000" class="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Anotações sobre o caso..."></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="btnCancelarFeedback" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">Cancelar</button>
+          <button type="submit" id="btnSalvarFeedback" class="px-4 py-2 rounded-lg bg-jur-navy text-white hover:bg-slate-900">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+      const fmtBRL = (v) => BRL.format(Number(v || 0));
+      const fmtPct = (v) => `${(Number(v || 0) * 100).toFixed(1)}%`;
+      const estado = { lancamentos: [] };
+
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function showMsg(tipo, texto) {
+        const box = byId('msgBox');
+        box.className = 'mb-3 rounded-lg px-3 py-2 text-sm font-medium';
+        if (tipo === 'ok') {
+          box.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+        } else {
+          box.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+        }
+        box.textContent = texto;
+        box.classList.remove('hidden');
+      }
+
+      function hideMsg() {
+        byId('msgBox').classList.add('hidden');
+      }
+
+      function toNullableNumber(raw) {
+        const txt = String(raw ?? '').trim();
+        if (txt === '') return null;
+        const n = Number(txt);
+        return Number.isFinite(n) ? n : NaN;
+      }
+
+      async function fetchJson(url, options = {}) {
+        const res = await fetch(url, { cache: 'no-store', ...options });
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok || data.erro) {
+          throw new Error(data.erro || `HTTP ${res.status}`);
+        }
+        return data;
+      }
+
+      function renderRichText(targetEl, text) {
+        const raw = String(text || '').trim();
+        if (!raw) {
+          targetEl.innerHTML = '';
+          return;
+        }
+
+        const pareceHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+        let html = '';
+        if (pareceHtml) {
+          html = raw;
+        } else if (window.marked && typeof window.marked.parse === 'function') {
+          html = window.marked.parse(raw, { breaks: true, gfm: true });
+        } else {
+          html = raw
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replace(/\n/g, '<br>');
+        }
+
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+          html = window.DOMPurify.sanitize(html);
+        }
+        targetEl.innerHTML = html;
+      }
+
+      function setLoadingRelatorio(on) {
+        const btn = byId('btnRelatorioIA');
+        btn.disabled = on;
+        btn.textContent = on ? 'Gerando...' : 'Gerar Relatório IA';
+        if (on) {
+          btn.classList.add('opacity-80', 'cursor-not-allowed');
+        } else {
+          btn.classList.remove('opacity-80', 'cursor-not-allowed');
+        }
+      }
+
+      function recomendacaoBadge(recomendacao) {
+        if (recomendacao === 'ACORDO') {
+          return '<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-semibold">ACORDO</span>';
+        }
+        return '<span class="px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold">DEFESA</span>';
+      }
+
+      function feedbackBadge(item) {
+        const f = item.feedback || {};
+        if (f.desfecho_real) {
+          const acertou = f.modelo_acertou === 1 ? 'Acertou' : (f.modelo_acertou === 0 ? 'Errou' : 'Indefinido');
+          const cor = f.modelo_acertou === 1 ? 'green' : (f.modelo_acertou === 0 ? 'red' : 'slate');
+          if (cor === 'green') return `<span class="px-2 py-1 rounded bg-green-100 text-green-700 font-semibold">Concluído · ${acertou}</span>`;
+          if (cor === 'red') return `<span class="px-2 py-1 rounded bg-red-100 text-red-700 font-semibold">Concluído · ${acertou}</span>`;
+          return '<span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold">Concluído</span>';
+        }
+        return '<span class="px-2 py-1 rounded bg-amber-100 text-amber-700 font-semibold">Pendente</span>';
+      }
+
+      function linhaLancamento(item) {
+        const badge = recomendacaoBadge(item.recomendacao);
+
+        const data = item.criado_em ? new Date(item.criado_em).toLocaleString('pt-BR') : '-';
+        const f = item.feedback || {};
+        const desfechoAtual = f.desfecho_real || '';
+        const valorAtual = f.valor_pago != null ? String(Number(f.valor_pago)) : '';
+        const opAcordo = desfechoAtual === 'ACORDO' ? 'selected' : '';
+        const opDefesa = desfechoAtual === 'DEFESA' ? 'selected' : '';
+
+        return `
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-2 pr-4">${item.id}</td>
+            <td class="py-2 pr-4">${escapeHtml(data)}</td>
+            <td class="py-2 pr-4">${escapeHtml(item.numero_processo || '-')}</td>
+            <td class="py-2 pr-4">${escapeHtml(item.uf || '-')}</td>
+            <td class="py-2 pr-4">${fmtBRL(item.valor_causa)}</td>
+            <td class="py-2 pr-4">${badge}</td>
+            <td class="py-2 pr-4">${fmtBRL(item.e_vp_acordo)}</td>
+            <td class="py-2 pr-4">${item.valor_sugerido_acordo != null ? fmtBRL(item.valor_sugerido_acordo) : '-'}</td>
+            <td class="py-2 pr-4">${fmtBRL(item.e_vp_defesa)}</td>
+            <td class="py-2 pr-4">${fmtPct(item.p_exito)}</td>
+            <td class="py-2 pr-4">${escapeHtml(item.feedback?.desfecho_real || '-')}</td>
+            <td class="py-2 pr-4">${item.feedback?.valor_pago != null ? fmtBRL(item.feedback.valor_pago) : '-'}</td>
+            <td class="py-2 pr-4">${feedbackBadge(item)}</td>
+            <td class="py-2 pr-4">
+              <div class="min-w-[260px] space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <select class="quick-desfecho border border-slate-300 rounded-lg px-2 py-1.5 text-xs" data-id="${item.id}">
+                    <option value="">Desfecho...</option>
+                    <option value="ACORDO" ${opAcordo}>ACORDO</option>
+                    <option value="DEFESA" ${opDefesa}>DEFESA</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="quick-valor border border-slate-300 rounded-lg px-2 py-1.5 text-xs"
+                    data-id="${item.id}"
+                    placeholder="Valor pago"
+                    value="${escapeHtml(valorAtual)}"
+                  />
+                </div>
+                <div class="flex gap-2">
+                  <button class="btn-quick-feedback px-2.5 py-1.5 rounded-lg bg-jur-green text-white hover:bg-emerald-700 text-xs font-semibold" data-id="${item.id}">
+                    Enviar
+                  </button>
+                  <button class="btn-feedback px-2.5 py-1.5 rounded-lg border border-jur-navy text-jur-navy hover:bg-jur-navy hover:text-white text-xs font-semibold" data-id="${item.id}">
+                    Detalhes
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      function linhaFeedbackResultado(item) {
+        const f = item.feedback || {};
+        const feedbackId = f.id ?? '-';
+        const desfechoAtual = f.desfecho_real || '';
+        const valorAtual = f.valor_pago != null ? String(Number(f.valor_pago)) : '';
+        const advogadoAtual = (f.advogado_seguiu === 0 || f.advogado_seguiu === 1) ? String(f.advogado_seguiu) : '';
+        const observacoesAtual = f.observacoes || '';
+        const atualizadoEm = f.atualizado_em ? new Date(f.atualizado_em).toLocaleString('pt-BR') : '-';
+        const opAcordo = desfechoAtual === 'ACORDO' ? 'selected' : '';
+        const opDefesa = desfechoAtual === 'DEFESA' ? 'selected' : '';
+        const opAdvSim = advogadoAtual === '1' ? 'selected' : '';
+        const opAdvNao = advogadoAtual === '0' ? 'selected' : '';
+
+        return `
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-2 pr-4 pl-3">${escapeHtml(feedbackId)}</td>
+            <td class="py-2 pr-4">${item.id}</td>
+            <td class="py-2 pr-4">${escapeHtml(item.numero_processo || '-')}</td>
+            <td class="py-2 pr-4">${recomendacaoBadge(item.recomendacao)}</td>
+            <td class="py-2 pr-4">
+              <select class="feedback-linha-desfecho border border-slate-300 rounded-lg px-2 py-1.5 text-xs" data-id="${item.id}">
+                <option value="">Não informado</option>
+                <option value="ACORDO" ${opAcordo}>ACORDO</option>
+                <option value="DEFESA" ${opDefesa}>DEFESA</option>
+              </select>
+            </td>
+            <td class="py-2 pr-4">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                class="feedback-linha-valor border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-32"
+                data-id="${item.id}"
+                placeholder="0.00"
+                value="${escapeHtml(valorAtual)}"
+              />
+            </td>
+            <td class="py-2 pr-4">
+              <select class="feedback-linha-adv border border-slate-300 rounded-lg px-2 py-1.5 text-xs" data-id="${item.id}">
+                <option value="">Não informado</option>
+                <option value="1" ${opAdvSim}>Sim</option>
+                <option value="0" ${opAdvNao}>Não</option>
+              </select>
+            </td>
+            <td class="py-2 pr-4">
+              <input
+                type="text"
+                maxlength="300"
+                class="feedback-linha-obs border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-full min-w-[220px]"
+                data-id="${item.id}"
+                placeholder="Observações rápidas..."
+                value="${escapeHtml(observacoesAtual)}"
+              />
+            </td>
+            <td class="py-2 pr-4">
+              <div class="space-y-1">
+                <button class="btn-feedback-linha px-2.5 py-1.5 rounded-lg bg-jur-green text-white hover:bg-emerald-700 text-xs font-semibold" data-id="${item.id}">
+                  Enviar feedback
+                </button>
+                <p class="text-[11px] text-slate-500">Atualizado: ${escapeHtml(atualizadoEm)}</p>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      function abrirModal(item) {
+        byId('fAnaliseId').value = item.id;
+        byId('fAnaliseIdView').textContent = item.id;
+        byId('fRecomendacao').textContent = item.recomendacao || '-';
+
+        byId('fNumeroProcesso').value = item.numero_processo || '';
+        byId('fUf').value = item.uf || '';
+        byId('fValorCausa').value = item.valor_causa ?? '';
+        byId('fRecomendacaoIa').value = item.recomendacao || 'ACORDO';
+        byId('fPExito').value = item.p_exito ?? '';
+        byId('fEVPAcordo').value = item.e_vp_acordo ?? '';
+        byId('fValorSugAcordo').value = item.valor_sugerido_acordo ?? '';
+        byId('fEVPDefesa').value = item.e_vp_defesa ?? '';
+
+        const f = item.feedback || {};
+        byId('fAdvogadoSeguiu').value = (f.advogado_seguiu === 0 || f.advogado_seguiu === 1) ? String(f.advogado_seguiu) : '';
+        byId('fDesfechoReal').value = f.desfecho_real || '';
+        byId('fValorPago').value = f.valor_pago ?? '';
+        byId('fObservacoes').value = f.observacoes || '';
+
+        byId('feedbackModal').classList.remove('hidden');
+      }
+
+      function fecharModal() {
+        byId('feedbackModal').classList.add('hidden');
+      }
+
+      async function carregar() {
+        const ts = Date.now();
+        const [data, ef] = await Promise.all([
+          fetchJson(`/api/lancamentos?limit=150&t=${ts}`),
+          fetchJson(`/api/eficacia?t=${ts}`)
+        ]);
+
+        const resumo = data.resumo || {};
+        const lista = data.lancamentos || [];
+        estado.lancamentos = lista;
+
+        byId('kpiTotal').textContent = resumo.total_lancamentos || 0;
+        byId('kpiExtracao').textContent = `${Number(resumo.taxa_extracao_completa || 0).toFixed(2)}%`;
+        byId('kpiAvaliadas').textContent = ef.avaliadas || 0;
+        byId('kpiAderencia').textContent = `${Number(ef.taxa_aderencia || 0).toFixed(2)}%`;
+        byId('kpiAcuracia').textContent = `${Number(ef.acuracia_modelo || 0).toFixed(2)}%`;
+        byId('kpiAceitacao').textContent = ef.pagamentos_registrados ?? 0;
+        byId('kpiEconomia').textContent = ef.economia_total_modelo != null
+          ? fmtBRL(ef.economia_total_modelo)
+          : '-';
+
+        const tbody = byId('tbLancamentos');
+        const tbodyFeedback = byId('tbFeedbackResultados');
+        tbody.innerHTML = '';
+        tbodyFeedback.innerHTML = '';
+
+        if (!lista.length) {
+          byId('semDados').classList.remove('hidden');
+          byId('semDadosFeedback').classList.remove('hidden');
+          return;
+        }
+
+        byId('semDados').classList.add('hidden');
+        byId('semDadosFeedback').classList.add('hidden');
+        tbody.innerHTML = lista.map(linhaLancamento).join('');
+        tbodyFeedback.innerHTML = lista.map(linhaFeedbackResultado).join('');
+      }
+
+      async function salvarFeedback(event) {
+        event.preventDefault();
+        hideMsg();
+
+        const analiseId = Number(byId('fAnaliseId').value);
+
+        const numeroProcesso = byId('fNumeroProcesso').value.trim();
+        const uf = byId('fUf').value.trim().toUpperCase();
+        const valorCausa = toNullableNumber(byId('fValorCausa').value);
+        const recomendacaoIa = byId('fRecomendacaoIa').value;
+        const pExito = toNullableNumber(byId('fPExito').value);
+        const eVPAcordo = toNullableNumber(byId('fEVPAcordo').value);
+        const valorSugAcordo = toNullableNumber(byId('fValorSugAcordo').value);
+        const eVPDefesa = toNullableNumber(byId('fEVPDefesa').value);
+
+        const advRaw = byId('fAdvogadoSeguiu').value;
+        const desfecho = byId('fDesfechoReal').value || null;
+        const valorPago = toNullableNumber(byId('fValorPago').value);
+        const observacoes = byId('fObservacoes').value.trim();
+
+        if ([valorCausa, pExito, eVPAcordo, valorSugAcordo, eVPDefesa, valorPago].some(Number.isNaN)) {
+          showMsg('erro', 'Preencha os campos numéricos com valores válidos.');
+          return;
+        }
+
+        if (uf && uf.length !== 2) {
+          showMsg('erro', 'UF deve conter 2 letras.');
+          return;
+        }
+
+        const payloadAnalise = {
+          numero_processo: numeroProcesso === '' ? null : numeroProcesso,
+          uf: uf === '' ? null : uf,
+          valor_causa: valorCausa,
+          recomendacao_ia: recomendacaoIa,
+          p_exito: pExito,
+          e_vp_acordo: eVPAcordo,
+          valor_sugerido_acordo: valorSugAcordo,
+          e_vp_defesa: eVPDefesa
+        };
+
+        const payloadFeedback = {
+          analise_id: analiseId,
+          advogado_seguiu: advRaw === '' ? null : Number(advRaw),
+          desfecho_real: desfecho,
+          valor_pago: valorPago,
+          observacoes: observacoes || null
+        };
+
+        const btnSalvar = byId('btnSalvarFeedback');
+        btnSalvar.disabled = true;
+        btnSalvar.textContent = 'Salvando...';
+
+        try {
+          await fetchJson(`/api/lancamentos/${analiseId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadAnalise)
+          });
+
+          await fetchJson('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadFeedback)
+          });
+
+          fecharModal();
+          await carregar();
+          showMsg('ok', `Caso ${analiseId} atualizado com sucesso.`);
+        } catch (err) {
+          showMsg('erro', `Falha ao salvar atualização: ${err.message}`);
+        } finally {
+          btnSalvar.disabled = false;
+          btnSalvar.textContent = 'Salvar alterações';
+        }
+      }
+
+      async function enviarFeedbackRapido(analiseId) {
+        hideMsg();
+        const select = document.querySelector(`.quick-desfecho[data-id="${analiseId}"]`);
+        const input = document.querySelector(`.quick-valor[data-id="${analiseId}"]`);
+        const btn = document.querySelector(`.btn-quick-feedback[data-id="${analiseId}"]`);
+        if (!select || !input || !btn) {
+          showMsg('erro', 'Nao foi possivel localizar os campos de feedback da linha.');
+          return;
+        }
+
+        const desfecho = select.value || null;
+        const valorPago = toNullableNumber(input.value);
+
+        if (!desfecho) {
+          showMsg('erro', `Selecione o desfecho real do caso ${analiseId}.`);
+          return;
+        }
+        if (valorPago === null || Number.isNaN(valorPago) || valorPago < 0) {
+          showMsg('erro', `Informe um valor pago valido para o caso ${analiseId}.`);
+          return;
+        }
+
+        const txtOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+
+        try {
+          await fetchJson('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              analise_id: analiseId,
+              desfecho_real: desfecho,
+              valor_pago: valorPago,
+            }),
+          });
+          await carregar();
+          showMsg('ok', `Feedback do caso ${analiseId} enviado com sucesso.`);
+        } catch (err) {
+          showMsg('erro', `Falha ao enviar feedback do caso ${analiseId}: ${err.message}`);
+          btn.disabled = false;
+          btn.textContent = txtOriginal;
+        }
+      }
+
+      async function enviarFeedbackLinhaResultado(analiseId) {
+        hideMsg();
+
+        const selectDesfecho = document.querySelector(`.feedback-linha-desfecho[data-id="${analiseId}"]`);
+        const inputValor = document.querySelector(`.feedback-linha-valor[data-id="${analiseId}"]`);
+        const selectAdvogado = document.querySelector(`.feedback-linha-adv[data-id="${analiseId}"]`);
+        const inputObs = document.querySelector(`.feedback-linha-obs[data-id="${analiseId}"]`);
+        const btn = document.querySelector(`.btn-feedback-linha[data-id="${analiseId}"]`);
+
+        if (!selectDesfecho || !inputValor || !selectAdvogado || !inputObs || !btn) {
+          showMsg('erro', 'Nao foi possivel localizar os campos de feedback da segunda tabela.');
+          return;
+        }
+
+        const desfechoReal = selectDesfecho.value || null;
+        const valorPago = toNullableNumber(inputValor.value);
+        const advogadoSeguiu = selectAdvogado.value === '' ? null : Number(selectAdvogado.value);
+        const observacoes = inputObs.value.trim();
+
+        if (!desfechoReal) {
+          showMsg('erro', `Selecione o desfecho real para o caso ${analiseId}.`);
+          return;
+        }
+        if (Number.isNaN(valorPago) || (valorPago !== null && valorPago < 0)) {
+          showMsg('erro', `Informe um valor pago valido para o caso ${analiseId}.`);
+          return;
+        }
+
+        const txtOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+
+        try {
+          await fetchJson('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              analise_id: analiseId,
+              advogado_seguiu: advogadoSeguiu,
+              desfecho_real: desfechoReal,
+              valor_pago: valorPago,
+              observacoes: observacoes || null,
+            }),
+          });
+          await carregar();
+          showMsg('ok', `Feedback da linha ${analiseId} salvo na tabela analises_feedback.`);
+        } catch (err) {
+          showMsg('erro', `Falha ao salvar feedback da linha ${analiseId}: ${err.message}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = txtOriginal;
+        }
+      }
+
+      async function gerarRelatorioIA() {
+        hideMsg();
+        setLoadingRelatorio(true);
+        try {
+          const res = await fetch('/api/relatorio-ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          const data = await res.json();
+          if (!res.ok || data.erro) {
+            throw new Error(data.erro || `HTTP ${res.status}`);
+          }
+
+          byId('relatorioIaBox').classList.remove('hidden');
+          renderRichText(byId('relatorioIaTexto'), data.relatorio_ia || '');
+          const dt = data.gerado_em ? new Date(data.gerado_em).toLocaleString('pt-BR') : '-';
+          byId('relatorioIaMeta').textContent = `Modelo: ${data.model || '-'} · Gerado em: ${dt}`;
+          showMsg('ok', 'Relatório gerado com sucesso pela IA.');
+        } catch (err) {
+          showMsg('erro', `Falha ao gerar relatório IA: ${err.message}`);
+        } finally {
+          setLoadingRelatorio(false);
+        }
+      }
+
+      byId('btnAtualizar').addEventListener('click', async () => {
+        const btn = byId('btnAtualizar');
+        btn.disabled = true;
+        const txt = btn.textContent;
+        btn.textContent = 'Atualizando...';
+        hideMsg();
+        try {
+          await carregar();
+          showMsg('ok', 'Tabela atualizada.');
+        } catch (err) {
+          showMsg('erro', `Erro ao carregar os lançamentos: ${err.message}`);
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = txt;
+        }
+      });
+      byId('btnRelatorioIA').addEventListener('click', gerarRelatorioIA);
+
+      byId('tbLancamentos').addEventListener('click', (event) => {
+        const btnRapido = event.target.closest('.btn-quick-feedback');
+        if (btnRapido) {
+          const idRapido = Number(btnRapido.dataset.id);
+          if (Number.isFinite(idRapido) && idRapido > 0) {
+            enviarFeedbackRapido(idRapido);
+          }
+          return;
+        }
+
+        const btn = event.target.closest('.btn-feedback');
+        if (!btn) return;
+        const id = Number(btn.dataset.id);
+        const item = estado.lancamentos.find((x) => x.id === id);
+        if (item) abrirModal(item);
+      });
+
+      byId('tbFeedbackResultados').addEventListener('click', (event) => {
+        const btn = event.target.closest('.btn-feedback-linha');
+        if (!btn) return;
+        const analiseId = Number(btn.dataset.id);
+        if (Number.isFinite(analiseId) && analiseId > 0) {
+          enviarFeedbackLinhaResultado(analiseId);
+        }
+      });
+
+      byId('feedbackForm').addEventListener('submit', salvarFeedback);
+      byId('btnFecharModal').addEventListener('click', fecharModal);
+      byId('btnCancelarFeedback').addEventListener('click', fecharModal);
+      byId('feedbackModal').addEventListener('click', (event) => {
+        if (event.target === byId('feedbackModal')) fecharModal();
+      });
+
+      carregar().catch((err) => {
+        byId('semDados').classList.remove('hidden');
+        byId('semDados').textContent = 'Erro ao carregar os lançamentos.';
+        byId('semDadosFeedback').classList.remove('hidden');
+        byId('semDadosFeedback').textContent = 'Erro ao carregar a tabela de feedback.';
+        showMsg('erro', 'Erro ao carregar os lançamentos.');
+        console.error(err);
+      });
+    })();
+  </script>
+</body>
+</html>

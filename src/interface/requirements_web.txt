@@ -1,0 +1,7 @@
+# JurisIA — Dependências
+# Instale com: pip install -r src/interface/requirements_web.txt
+
+flask>=3.0.0
+python-dotenv>=1.0.0
+pdfplumber>=0.11.0
+openai>=1.30.0

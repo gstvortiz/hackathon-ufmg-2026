@@ -14,7 +14,6 @@ venv/
 .venv/
 env/
 __pycache__/
-*.py[cod]
 *.egg-info/
 dist/
 build/
@@ -25,6 +24,7 @@ build/
 *.log
 *.tmp
 *.cache
+*.db
 .DS_Store
 Thumbs.db
 

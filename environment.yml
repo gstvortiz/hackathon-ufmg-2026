@@ -1,0 +1,17 @@
+name: enter
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - statsmodels
+  - openpyxl
+  - jupyterlab
+  - ipykernel
+  - pip:
+      - catboost
