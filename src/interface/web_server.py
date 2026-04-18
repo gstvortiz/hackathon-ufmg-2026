@@ -24,12 +24,29 @@ from typing import Any
 from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
-try:
-    from dotenv import load_dotenv
+def _load_environment() -> None:
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        return
 
-    load_dotenv()
-except Exception:
-    pass
+    interface_dir = Path(__file__).resolve().parent
+    project_root = interface_dir.parent.parent
+
+    candidates = (
+        project_root / ".env",
+        project_root / ".env.example",
+        project_root / ".env.ecample",
+        interface_dir / ".env",
+        interface_dir / ".env.example",
+        interface_dir / ".env.ecample",
+    )
+    for env_path in candidates:
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+
+
+_load_environment()
 
 try:
     from .document_extractor import (

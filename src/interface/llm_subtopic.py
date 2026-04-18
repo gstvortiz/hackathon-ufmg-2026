@@ -5,7 +5,9 @@ This module is optional. If removed, document_extractor.py can fallback to regex
 
 API key lookup order:
 1. OPENAI_API_KEY env var
-2. .env in this same folder
+2. .env na raiz do projeto
+3. .env.example ou .env.ecample na raiz do projeto
+4. .env, .env.example ou .env.ecample nesta pasta
 """
 from __future__ import annotations
 
@@ -35,9 +37,18 @@ _client: OpenAI | None = None
 
 def _load_local_dotenv() -> None:
     here = Path(__file__).resolve().parent
-    env_path = here / ".env"
-    if env_path.exists():
-        load_dotenv(env_path, override=False)
+    project_root = here.parent.parent
+    candidates = (
+        project_root / ".env",
+        project_root / ".env.example",
+        project_root / ".env.ecample",
+        here / ".env",
+        here / ".env.example",
+        here / ".env.ecample",
+    )
+    for env_path in candidates:
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
 
 
 def _get_client() -> OpenAI:
@@ -47,7 +58,7 @@ def _get_client() -> OpenAI:
         if not os.environ.get("OPENAI_API_KEY"):
             raise RuntimeError(
                 "OPENAI_API_KEY nao encontrada. Defina a variavel de ambiente "
-                "ou crie um arquivo .env contendo: OPENAI_API_KEY=sk-..."
+                "ou use .env/.env.example/.env.ecample contendo: OPENAI_API_KEY=sk-..."
             )
         _client = OpenAI()
     return _client

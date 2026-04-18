@@ -13,5 +13,7 @@ dependencies:
   - openpyxl
   - jupyterlab
   - ipykernel
+  - flask
   - pip:
       - catboost
+      - openai

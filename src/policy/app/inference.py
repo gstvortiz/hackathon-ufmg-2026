@@ -51,7 +51,56 @@ FEATURES_E = [
 ]
 
 FEATURES_VT = ['Valor da causa']
-MODEL_VT_PATH = MODELS_EXPECTATIONS_DIR / 'E[$|VT].pkl'
+
+
+def resolve_model_path(models_dir: Path, candidate_names, required_tokens) -> Path:
+    for name in candidate_names:
+        path = models_dir / name
+        if path.exists():
+            return path
+
+    pkl_files = sorted(models_dir.glob('*.pkl'))
+    for path in pkl_files:
+        normalized = path.name.casefold().replace(' ', '')
+        if all(token.casefold().replace(' ', '') in normalized for token in required_tokens):
+            return path
+
+    available = ', '.join(p.name for p in pkl_files) or '<nenhum .pkl>'
+    raise FileNotFoundError(
+        f'Nenhum modelo compatível encontrado em {models_dir}. '
+        f'Esperado algo como {candidate_names}. Disponíveis: {available}'
+    )
+
+
+MODEL_E_PATH = resolve_model_path(
+    MODELS_CLASSIFIERS_DIR,
+    candidate_names=(
+        'P(E | ¬A, X).pkl',
+        'P(E _ ¬A, X).pkl',
+        'P(E|¬A,X).pkl',
+    ),
+    required_tokens=('p(e', '¬a', 'x'),
+)
+
+MODEL_ALPHA_PATH = resolve_model_path(
+    MODELS_EXPECTATIONS_DIR,
+    candidate_names=(
+        'E[α | UF].pkl',
+        'E[α _ UF].pkl',
+        'E[α|UF].pkl',
+    ),
+    required_tokens=('e[', 'α', 'uf'),
+)
+
+MODEL_VT_PATH = resolve_model_path(
+    MODELS_EXPECTATIONS_DIR,
+    candidate_names=(
+        'E[$|VT].pkl',
+        'E[$_VT].pkl',
+        'E[$ | VT].pkl',
+    ),
+    required_tokens=('e[', '$', 'vt'),
+)
 
 
 def gamma_rvs_from_mu_phi(mu, phi, rng):
@@ -142,10 +191,10 @@ def predict_pi_gamma_from_saved_model(
 
 
 def load_models():
-    with open(MODELS_CLASSIFIERS_DIR / 'P(E | ¬A, X).pkl', 'rb') as f:
+    with open(MODEL_E_PATH, 'rb') as f:
         model_e = pickle.load(f)
 
-    with open(MODELS_EXPECTATIONS_DIR / 'E[α | UF].pkl', 'rb') as f:
+    with open(MODEL_ALPHA_PATH, 'rb') as f:
         model_alpha = pickle.load(f)
 
     return model_e, model_alpha

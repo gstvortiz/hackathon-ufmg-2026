@@ -52,6 +52,7 @@ FLASK_DEBUG=true
 
 Observação:
 - Sem `OPENAI_API_KEY`, o sistema continua funcionando com textos de fallback local para justificativas/relatórios.
+- O carregamento de ambiente busca automaticamente `.env`, `.env.example` (e também `.env.ecample`) na raiz do projeto e em `src/interface/`.
 
 ## Execução
 

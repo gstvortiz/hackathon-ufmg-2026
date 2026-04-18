@@ -15,16 +15,35 @@ import os
 import random
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
 from textwrap import dedent
 
 DB_PATH_PADRAO = "juris_ia.db"
-try:
-    from dotenv import load_dotenv
 
-    load_dotenv()
-except Exception:
-    # Sem python-dotenv, o script segue usando variaveis de ambiente do sistema.
-    pass
+def _load_environment() -> None:
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        # Sem python-dotenv, o script segue usando variaveis de ambiente do sistema.
+        return
+
+    interface_dir = Path(__file__).resolve().parent
+    project_root = interface_dir.parent.parent
+
+    candidates = (
+        project_root / ".env",
+        project_root / ".env.example",
+        project_root / ".env.ecample",
+        interface_dir / ".env",
+        interface_dir / ".env.example",
+        interface_dir / ".env.ecample",
+    )
+    for env_path in candidates:
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+
+
+_load_environment()
 
 SCHEMA_ANALISES_SQL = """
 CREATE TABLE IF NOT EXISTS analises (
